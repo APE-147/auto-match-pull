@@ -73,7 +73,6 @@ Icon
 # macOS plist files (contain personal paths)
 *.plist
 macos/*.plist
-macos/com.ape147.auto-match-pull.plist
 
 # Configuration files with personal paths
 config.json
@@ -85,13 +84,10 @@ data/
 *.db
 *.sqlite
 *.sqlite3
-mappings.db
 
 # Log files (may contain personal information)
 *.log
 logs/
-daemon.log
-daemon.error.log
 
 # Git filter-branch backup
 refs/original/
