@@ -93,6 +93,9 @@ logs/
 daemon.log
 daemon.error.log
 
+# Git filter-branch backup
+refs/original/
+
 # Backup files
 *.bak
 *.backup
