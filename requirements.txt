@@ -1,0 +1,16 @@
+# Core dependencies - none required as we use only standard library
+# All functionality is implemented using Python's built-in modules:
+# - sqlite3 for database
+# - subprocess for git operations
+# - threading for concurrent operations
+# - argparse for CLI
+# - json for configuration
+# - logging for output
+# - pathlib/os for file operations
+
+# Optional development dependencies (install with: pip install -e .[dev])
+# pytest>=7.0.0
+# pytest-cov>=4.0.0
+# black>=22.0.0
+# flake8>=5.0.0
+# mypy>=1.0.0

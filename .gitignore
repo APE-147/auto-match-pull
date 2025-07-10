@@ -1,0 +1,137 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Personal Information & Configuration Files
+# ===========================================
+
+# macOS plist files (contain personal paths)
+*.plist
+macos/*.plist
+macos/com.ape147.auto-match-pull.plist
+
+# Configuration files with personal paths
+config.json
+.auto-match-pull/
+~/.auto-match-pull/
+
+# Database files (may contain personal mappings)
+*.db
+*.sqlite
+*.sqlite3
+mappings.db
+
+# Log files (may contain personal information)
+*.log
+logs/
+daemon.log
+daemon.error.log
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Personal scripts and installation files
+install_personal.sh
+setup_personal.sh
+
+# GitHub tokens and API keys
+.env.local
+.env.production
+secrets.json
+tokens.txt
+api_keys.txt
+
+# User-specific configuration
+user_config.json
+personal_config.json
+
+# Test files with personal data
+test_personal/
+personal_test/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Archive files that might contain personal data
+*.tar.gz
+*.zip
+*.rar
+personal_backup.*
+
+# Editor temporary files
+.#*
+#*#
+
+# Any file containing 'personal' or 'private'
+*personal*
+*private*
+*secret*

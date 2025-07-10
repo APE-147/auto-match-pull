@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ape147.auto-match-pull</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/auto-match-pull</string>
+        <string>daemon</string>
+    </array>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <true/>
+    
+    <key>StandardOutPath</key>
+    <string>$HOME/.auto-match-pull/logs/daemon.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>$HOME/.auto-match-pull/logs/daemon.error.log</string>
+    
+    <key>WorkingDirectory</key>
+    <string>$HOME</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>AUTO_MATCH_PULL_SEARCH_PATHS</key>
+        <string>$HOME/path/to/your/projects1,$HOME/path/to/your/projects2</string>
+        <key>AUTO_MATCH_PULL_INTERVAL</key>
+        <string>30</string>
+    </dict>
+    
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    
+    <key>ProcessType</key>
+    <string>Background</string>
+    
+    <key>LowPriorityIO</key>
+    <true/>
+    
+    <key>Nice</key>
+    <integer>1</integer>
+</dict>
+</plist>
