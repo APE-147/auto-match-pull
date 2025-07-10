@@ -18,10 +18,10 @@
     <true/>
     
     <key>StandardOutPath</key>
-    <string>$HOME/.auto-match-pull/logs/daemon.log</string>
+    <string>$HOME/Developer/Code/Local/Script/desktop/auto-match-pull/data/logs/daemon.log</string>
     
     <key>StandardErrorPath</key>
-    <string>$HOME/.auto-match-pull/logs/daemon.error.log</string>
+    <string>$HOME/Developer/Code/Local/Script/desktop/auto-match-pull/data/logs/daemon.error.log</string>
     
     <key>WorkingDirectory</key>
     <string>$HOME</string>

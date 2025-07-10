@@ -79,6 +79,7 @@ macos/com.ape147.auto-match-pull.plist
 config.json
 .auto-match-pull/
 ~/.auto-match-pull/
+data/
 
 # Database files (may contain personal mappings)
 *.db

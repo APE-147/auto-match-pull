@@ -29,7 +29,9 @@ def setup_logging(verbose: bool = False):
 def load_config(config_path: str = None) -> Dict:
     """加载配置文件，支持环境变量覆盖"""
     if config_path is None:
-        config_path = os.path.expanduser("~/.auto-match-pull/config.json")
+        # 默认存储在项目文件夹的data目录下
+        project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(project_dir, "data", "config.json")
     
     # 从环境变量获取搜索路径
     env_search_paths = os.environ.get('AUTO_MATCH_PULL_SEARCH_PATHS')
@@ -276,7 +278,12 @@ def cmd_daemon(args):
 
 def cmd_config(args):
     """管理配置"""
-    config_path = args.config or os.path.expanduser("~/.auto-match-pull/config.json")
+    if args.config:
+        config_path = args.config
+    else:
+        # 默认存储在项目文件夹的data目录下
+        project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(project_dir, "data", "config.json")
     
     if args.show:
         if os.path.exists(config_path):
