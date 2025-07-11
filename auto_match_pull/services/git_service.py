@@ -25,8 +25,9 @@ class PullResult:
     auto_resolved: bool = False
 
 class GitService:
-    def __init__(self, timeout: int = 30):
+    def __init__(self, timeout: int = 30, conflict_strategy: str = 'smart_merge'):
         self.timeout = timeout
+        self.conflict_strategy = conflict_strategy
     
     def check_git_available(self) -> bool:
         """检查Git是否可用"""
@@ -227,7 +228,7 @@ class GitService:
                     continue
                     
                 full_path = os.path.join(repo_path, file_path)
-                if self._try_resolve_conflict(full_path):
+                if self._try_resolve_conflict(full_path, self.conflict_strategy):
                     # 标记为已解决
                     subprocess.run(
                         ['git', 'add', file_path],
@@ -245,8 +246,13 @@ class GitService:
             logger.error(f"解决冲突失败: {e}")
             return conflict_files if 'conflict_files' in locals() else []
     
-    def _try_resolve_conflict(self, file_path: str) -> bool:
-        """尝试自动解决单个文件的冲突"""
+    def _try_resolve_conflict(self, file_path: str, strategy: str = 'keep_both') -> bool:
+        """尝试自动解决单个文件的冲突
+        
+        Args:
+            file_path: 冲突文件路径
+            strategy: 解决策略 ('keep_both', 'keep_local', 'keep_remote', 'smart_merge')
+        """
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -255,33 +261,148 @@ class GitService:
             if '<<<<<<< HEAD' not in content:
                 return True
             
-            # 简单的冲突解决策略：优先保留远程版本
-            lines = content.split('\n')
-            resolved_lines = []
-            in_conflict = False
-            
-            for line in lines:
-                if line.startswith('<<<<<<< HEAD'):
-                    in_conflict = True
-                    continue
-                elif line.startswith('======='):
-                    continue
-                elif line.startswith('>>>>>>> '):
-                    in_conflict = False
-                    continue
-                elif not in_conflict:
-                    resolved_lines.append(line)
-                # 在冲突区域内，优先保留远程版本（=======之后的内容）
-            
-            # 写回文件
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(resolved_lines))
-            
-            return True
+            if strategy == 'smart_merge':
+                return self._smart_merge_conflict(file_path, content)
+            elif strategy == 'keep_both':
+                return self._resolve_keep_both(file_path, content)
+            elif strategy == 'keep_local':
+                return self._resolve_keep_local(file_path, content)
+            elif strategy == 'keep_remote':
+                return self._resolve_keep_remote(file_path, content)
+            else:
+                logger.warning(f"未知的冲突解决策略: {strategy}, 使用keep_both")
+                return self._resolve_keep_both(file_path, content)
             
         except Exception as e:
             logger.error(f"解决文件冲突失败 {file_path}: {e}")
             return False
+    
+    def _resolve_keep_both(self, file_path: str, content: str) -> bool:
+        """保留双方更改的冲突解决策略"""
+        lines = content.split('\n')
+        resolved_lines = []
+        in_conflict = False
+        local_lines = []
+        remote_lines = []
+        in_remote_section = False
+        
+        for line in lines:
+            if line.startswith('<<<<<<< HEAD'):
+                in_conflict = True
+                in_remote_section = False
+                local_lines = []
+                remote_lines = []
+                resolved_lines.append("# ============ 合并冲突 ============")
+                resolved_lines.append("# 本地版本:")
+                continue
+            elif line.startswith('======='):
+                in_remote_section = True
+                resolved_lines.extend(local_lines)
+                resolved_lines.append("# 远程版本:")
+                continue
+            elif line.startswith('>>>>>>> '):
+                resolved_lines.extend(remote_lines)
+                resolved_lines.append("# ================================")
+                in_conflict = False
+                in_remote_section = False
+                continue
+            elif not in_conflict:
+                resolved_lines.append(line)
+            elif in_conflict and not in_remote_section:
+                local_lines.append(line)
+            elif in_conflict and in_remote_section:
+                remote_lines.append(line)
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(resolved_lines))
+        
+        logger.info(f"自动解决冲突，保留双方更改: {file_path}")
+        return True
+    
+    def _resolve_keep_local(self, file_path: str, content: str) -> bool:
+        """保留本地版本的冲突解决策略"""
+        lines = content.split('\n')
+        resolved_lines = []
+        in_conflict = False
+        in_remote_section = False
+        
+        for line in lines:
+            if line.startswith('<<<<<<< HEAD'):
+                in_conflict = True
+                in_remote_section = False
+                continue
+            elif line.startswith('======='):
+                # 切换到远程版本区域，开始跳过
+                in_remote_section = True
+                continue
+            elif line.startswith('>>>>>>> '):
+                in_conflict = False
+                in_remote_section = False
+                continue
+            elif not in_conflict:
+                resolved_lines.append(line)
+            elif in_conflict and not in_remote_section:
+                # 在冲突区域内且在本地版本部分
+                resolved_lines.append(line)
+            # 跳过远程版本（in_conflict and in_remote_section的情况）
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(resolved_lines))
+        
+        logger.info(f"自动解决冲突，保留本地版本: {file_path}")
+        return True
+    
+    def _resolve_keep_remote(self, file_path: str, content: str) -> bool:
+        """保留远程版本的冲突解决策略"""
+        lines = content.split('\n')
+        resolved_lines = []
+        in_conflict = False
+        in_remote_section = False
+        
+        for line in lines:
+            if line.startswith('<<<<<<< HEAD'):
+                in_conflict = True
+                in_remote_section = False
+                continue
+            elif line.startswith('======='):
+                in_remote_section = True
+                continue
+            elif line.startswith('>>>>>>> '):
+                in_conflict = False
+                in_remote_section = False
+                continue
+            elif not in_conflict:
+                resolved_lines.append(line)
+            elif in_conflict and in_remote_section:
+                resolved_lines.append(line)
+            # 跳过本地版本
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(resolved_lines))
+        
+        logger.info(f"自动解决冲突，保留远程版本: {file_path}")
+        return True
+    
+    def _smart_merge_conflict(self, file_path: str, content: str) -> bool:
+        """智能合并冲突（根据文件类型和内容特征）"""
+        # 根据文件扩展名决定策略
+        file_ext = os.path.splitext(file_path)[1].lower()
+        
+        # 配置文件倾向于保留本地
+        config_files = {'.json', '.yaml', '.yml', '.conf', '.ini', '.toml'}
+        if file_ext in config_files:
+            logger.info(f"配置文件冲突，保留本地版本: {file_path}")
+            return self._resolve_keep_local(file_path, content)
+        
+        # 文档文件保留双方
+        doc_files = {'.md', '.txt', '.rst', '.doc'}
+        if file_ext in doc_files:
+            logger.info(f"文档文件冲突，保留双方更改: {file_path}")
+            return self._resolve_keep_both(file_path, content)
+        
+        # 代码文件需要更谨慎，默认保留双方供手动review
+        logger.info(f"代码文件冲突，保留双方更改: {file_path}")
+        return self._resolve_keep_both(file_path, content)
     
     def _parse_conflicts(self, error_message: str) -> List[str]:
         """解析冲突文件列表"""

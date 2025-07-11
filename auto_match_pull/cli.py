@@ -63,10 +63,13 @@ def load_config(config_path: str = None) -> Dict:
                 "pull_interval_minutes": default_interval,
                 "max_concurrent_pulls": 3,
                 "retry_failed_after_minutes": 120,
-                "cleanup_logs_days": 30
+                "cleanup_logs_days": 30,
+                "repo_manager_dependency": True,
+                "repo_manager_config_dir": "/Users/niceday/Developer/Code/Local/Script/desktop/repo-management/.repo-manager"
             },
             "similarity_threshold": 0.8,
-            "auto_resolve_conflicts": True
+            "auto_resolve_conflicts": True,
+            "conflict_resolution_strategy": "smart_merge"
         }
         
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
@@ -193,8 +196,10 @@ def cmd_list(args):
 
 def cmd_pull(args):
     """执行Pull操作"""
+    config = load_config(args.config)
     db_manager = DatabaseManager()
-    git_service = GitService()
+    conflict_strategy = config.get('conflict_resolution_strategy', 'smart_merge')
+    git_service = GitService(conflict_strategy=conflict_strategy)
     
     if args.id:
         # Pull指定ID的仓库
@@ -240,13 +245,16 @@ def cmd_daemon(args):
     
     # 创建服务
     db_manager = DatabaseManager()
-    git_service = GitService()
+    conflict_strategy = config.get('conflict_resolution_strategy', 'smart_merge')
+    git_service = GitService(conflict_strategy=conflict_strategy)
     
     scheduler_config = SchedulerConfig(
         pull_interval_minutes=config['scheduler']['pull_interval_minutes'],
         max_concurrent_pulls=config['scheduler']['max_concurrent_pulls'],
         retry_failed_after_minutes=config['scheduler']['retry_failed_after_minutes'],
-        cleanup_logs_days=config['scheduler']['cleanup_logs_days']
+        cleanup_logs_days=config['scheduler']['cleanup_logs_days'],
+        repo_manager_dependency=config['scheduler'].get('repo_manager_dependency', True),
+        repo_manager_config_dir=config['scheduler'].get('repo_manager_config_dir', "/Users/niceday/Developer/Code/Local/Script/desktop/repo-management/.repo-manager")
     )
     
     scheduler = SchedulerService(db_manager, git_service, scheduler_config)

@@ -2,6 +2,7 @@ import time
 import threading
 import signal
 import sys
+import subprocess
 from datetime import datetime, timedelta
 from typing import Optional, Callable, Dict, List
 from dataclasses import dataclass
@@ -15,10 +16,12 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SchedulerConfig:
-    pull_interval_minutes: int = 30
+    pull_interval_minutes: int = 15
     max_concurrent_pulls: int = 3
     retry_failed_after_minutes: int = 120
     cleanup_logs_days: int = 30
+    repo_manager_dependency: bool = True
+    repo_manager_config_dir: str = "/Users/niceday/Developer/Code/Local/Script/desktop/repo-management/.repo-manager"
 
 class SchedulerService:
     def __init__(self, db_manager: DatabaseManager, git_service: GitService, config: SchedulerConfig = None):
@@ -91,9 +94,64 @@ class SchedulerService:
         
         logger.info("调度服务主循环结束")
     
+    def _is_repo_manager_idle(self) -> bool:
+        """检查repo-manager进程是否空闲"""
+        if not self.config.repo_manager_dependency:
+            return True
+        
+        try:
+            # 检查repo-manager进程是否在运行
+            result = subprocess.run(
+                ['ps', 'aux'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode != 0:
+                logger.warning("无法检查repo-manager进程状态")
+                return True
+            
+            # 检查是否有repo-manager monitor进程在运行
+            lines = result.stdout.split('\n')
+            for line in lines:
+                if 'repo-manager' in line and 'monitor' in line and 'grep' not in line:
+                    logger.debug("repo-manager monitor进程正在运行，等待其完成")
+                    return False
+            
+            logger.debug("repo-manager进程空闲")
+            return True
+            
+        except Exception as e:
+            logger.error(f"检查repo-manager状态失败: {e}")
+            # 如果检查失败，默认允许运行
+            return True
+    
+    def _wait_for_repo_manager_idle(self, timeout_minutes: int = 30):
+        """等待repo-manager进程变为空闲状态"""
+        if not self.config.repo_manager_dependency:
+            return
+        
+        start_time = time.time()
+        timeout_seconds = timeout_minutes * 60
+        
+        while not self._is_repo_manager_idle():
+            if time.time() - start_time > timeout_seconds:
+                logger.warning(f"等待repo-manager空闲超时 ({timeout_minutes}分钟)")
+                break
+            
+            if self._stop_event.wait(timeout=30):  # 每30秒检查一次
+                logger.info("收到停止信号，停止等待repo-manager")
+                break
+        
+        logger.info("repo-manager进程空闲，可以开始Pull操作")
+    
     def _execute_pull_cycle(self):
         """执行一轮Pull操作"""
         try:
+            # 等待repo-manager进程空闲
+            self._wait_for_repo_manager_idle()
+            
             # 获取需要Pull的映射
             mappings = self._get_pending_mappings()
             
