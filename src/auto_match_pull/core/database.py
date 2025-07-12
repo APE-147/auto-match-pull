@@ -29,11 +29,10 @@ class FolderRepoMapping:
 class DatabaseManager:
     def __init__(self, db_path: str = None):
         if db_path is None:
-            # 默认存储在项目文件夹的data目录下
-            project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            db_dir = os.path.join(project_dir, "data")
-            os.makedirs(db_dir, exist_ok=True)
-            db_path = os.path.join(db_dir, "mappings.db")
+            # 默认存储在用户数据目录
+            data_dir = os.path.expanduser("~/Developer/Code/Script_data/auto_match_pull")
+            os.makedirs(data_dir, exist_ok=True)
+            db_path = os.path.join(data_dir, "mappings.db")
         
         self.db_path = db_path
         self.init_database()

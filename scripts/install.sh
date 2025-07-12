@@ -7,10 +7,10 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLIST_FILE="com.ape147.auto-match-pull.plist"
-SERVICE_PLIST="$SCRIPT_DIR/$PLIST_FILE"
+SERVICE_PLIST="$SCRIPT_DIR/macos/launchd/$PLIST_FILE.template"
 LAUNCHD_PLIST="$HOME/Library/LaunchAgents/$PLIST_FILE"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-LOG_DIR="$PROJECT_DIR/data/logs"
+LOG_DIR="$HOME/Developer/Code/Script_data/auto_match_pull/logs"
 
 # 颜色定义
 RED='\033[0;31m'

@@ -28,7 +28,9 @@ classifiers = [
     "Topic :: System :: Filesystems",
     "Topic :: Utilities",
 ]
-dependencies = []
+dependencies = [
+    "typer>=0.9.0"
+]
 
 [project.optional-dependencies]
 dev = [
@@ -50,7 +52,7 @@ Source = "https://github.com/APE-147/auto-match-pull"
 Documentation = "https://github.com/APE-147/auto-match-pull/blob/main/README.md"
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["auto_match_pull*"]
 exclude = ["tests*"]
 

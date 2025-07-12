@@ -21,7 +21,7 @@ class SchedulerConfig:
     retry_failed_after_minutes: int = 120
     cleanup_logs_days: int = 30
     repo_manager_dependency: bool = True
-    repo_manager_config_dir: str = "/Users/niceday/Developer/Code/Local/Script/desktop/repo-management/.repo-manager"
+    repo_manager_config_dir: str = "~/Developer/Code/Script_data/repo_management/.repo-manager"
 
 class SchedulerService:
     def __init__(self, db_manager: DatabaseManager, git_service: GitService, config: SchedulerConfig = None):

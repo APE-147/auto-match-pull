@@ -10,11 +10,15 @@ import json
 import logging
 from pathlib import Path
 from typing import List, Dict, Optional
+import typer
 
 from .core.matcher import FolderMatcher
 from .core.database import DatabaseManager, FolderRepoMapping
 from .services.git_service import GitService
 from .services.scheduler import SchedulerService, SchedulerConfig
+
+# Typer应用
+app = typer.Typer(help="Auto Match Pull - 自动匹配文件夹和Git仓库并定时同步")
 
 
 def setup_logging(verbose: bool = False):
@@ -29,9 +33,9 @@ def setup_logging(verbose: bool = False):
 def load_config(config_path: str = None) -> Dict:
     """加载配置文件，支持环境变量覆盖"""
     if config_path is None:
-        # 默认存储在项目文件夹的data目录下
-        project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        config_path = os.path.join(project_dir, "data", "config.json")
+        # 默认存储在用户数据目录
+        data_dir = os.path.expanduser("~/Developer/Code/Script_data/auto_match_pull")
+        config_path = os.path.join(data_dir, "config.json")
     
     # 从环境变量获取搜索路径
     env_search_paths = os.environ.get('AUTO_MATCH_PULL_SEARCH_PATHS')
@@ -65,7 +69,7 @@ def load_config(config_path: str = None) -> Dict:
                 "retry_failed_after_minutes": 120,
                 "cleanup_logs_days": 30,
                 "repo_manager_dependency": True,
-                "repo_manager_config_dir": "/Users/niceday/Developer/Code/Local/Script/desktop/repo-management/.repo-manager"
+                "repo_manager_config_dir": "~/Developer/Code/Script_data/repo_management/.repo-manager"
             },
             "similarity_threshold": 0.8,
             "auto_resolve_conflicts": True,
@@ -254,7 +258,7 @@ def cmd_daemon(args):
         retry_failed_after_minutes=config['scheduler']['retry_failed_after_minutes'],
         cleanup_logs_days=config['scheduler']['cleanup_logs_days'],
         repo_manager_dependency=config['scheduler'].get('repo_manager_dependency', True),
-        repo_manager_config_dir=config['scheduler'].get('repo_manager_config_dir', "/Users/niceday/Developer/Code/Local/Script/desktop/repo-management/.repo-manager")
+        repo_manager_config_dir=config['scheduler'].get('repo_manager_config_dir', "~/Developer/Code/Script_data/repo_management/.repo-manager")
     )
     
     scheduler = SchedulerService(db_manager, git_service, scheduler_config)
@@ -289,9 +293,9 @@ def cmd_config(args):
     if args.config:
         config_path = args.config
     else:
-        # 默认存储在项目文件夹的data目录下
-        project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        config_path = os.path.join(project_dir, "data", "config.json")
+        # 默认存储在用户数据目录
+        data_dir = os.path.expanduser("~/Developer/Code/Script_data/auto_match_pull")
+        config_path = os.path.join(data_dir, "config.json")
     
     if args.show:
         if os.path.exists(config_path):
@@ -373,8 +377,53 @@ def cmd_delete(args):
         print(f"共清理了 {deleted_count} 个无效映射")
 
 
+@app.command()
+def autostart():
+    """启动自动服务（守护进程）"""
+    print("🚀 启动Auto Match Pull自动服务...")
+    
+    # 加载配置
+    config = load_config()
+    
+    # 初始化服务
+    db_manager = DatabaseManager()
+    git_service = GitService()
+    
+    scheduler_config = SchedulerConfig(
+        pull_interval_minutes=config['scheduler']['pull_interval_minutes'],
+        max_concurrent_pulls=config['scheduler']['max_concurrent_pulls'],
+        retry_failed_after_minutes=config['scheduler']['retry_failed_after_minutes'],
+        cleanup_logs_days=config['scheduler']['cleanup_logs_days'],
+        repo_manager_dependency=config['scheduler'].get('repo_manager_dependency', True),
+        repo_manager_config_dir=config['scheduler'].get('repo_manager_config_dir', "~/Developer/Code/Script_data/repo_management/.repo-manager")
+    )
+    
+    scheduler = SchedulerService(db_manager, git_service, scheduler_config)
+    
+    print("🔄 正在启动定时同步服务...")
+    print(f"⏰ Pull间隔: {scheduler_config.pull_interval_minutes}分钟")
+    print(f"🔀 最大并发: {scheduler_config.max_concurrent_pulls}")
+    print("✅ 服务已启动，按Ctrl+C停止")
+    
+    try:
+        scheduler.start()
+        # 保持主线程运行
+        while True:
+            import time
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\n🛑 停止服务...")
+        scheduler.stop()
+
+
 def main():
-    """主函数"""
+    """主函数 - 保留原有argparse接口以兼容现有用法"""
+    # 检查是否直接调用autostart
+    if len(sys.argv) > 1 and sys.argv[1] == 'autostart':
+        autostart()
+        return
+        
+    # 原有argparse逻辑
     parser = argparse.ArgumentParser(description='Auto Match Pull - 自动匹配文件夹和Git仓库并定时同步')
     parser.add_argument('-v', '--verbose', action='store_true', help='详细输出')
     parser.add_argument('-c', '--config', help='配置文件路径')
@@ -398,6 +447,9 @@ def main():
     # 守护进程命令
     daemon_parser = subparsers.add_parser('daemon', help='启动守护进程')
     daemon_parser.add_argument('--stop', action='store_true', help='停止守护进程')
+    
+    # autostart命令（通过argparse支持）
+    autostart_parser = subparsers.add_parser('autostart', help='启动自动服务（守护进程）')
     
     # 配置命令
     config_parser = subparsers.add_parser('config', help='管理配置')
@@ -432,6 +484,8 @@ def main():
             cmd_pull(args)
         elif args.command == 'daemon':
             cmd_daemon(args)
+        elif args.command == 'autostart':
+            autostart()
         elif args.command == 'config':
             cmd_config(args)
         elif args.command == 'logs':
@@ -446,7 +500,12 @@ def main():
         if args.verbose:
             import traceback
             traceback.print_exc()
-        sys.exit(1)
+
+
+# Typer应用入口（用于纯Typer调用）
+def typer_main():
+    """Typer应用入口"""
+    app()
 
 
 if __name__ == '__main__':
