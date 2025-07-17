@@ -9,7 +9,7 @@ import os
 import json
 import logging
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 import typer
 
 from .core.matcher import FolderMatcher
@@ -30,16 +30,32 @@ def setup_logging(verbose: bool = False):
     )
 
 
-def load_config(config_path: str = None) -> Dict:
+def load_config(config_path: str = None) -> Tuple[Dict, Optional[Dict]]:
     """加载配置文件，支持环境变量覆盖"""
     if config_path is None:
-        # 默认存储在用户数据目录
-        data_dir = os.path.expanduser("~/Developer/Code/Script_data/auto_match_pull")
+        # 使用PROJECT_DATA_DIR环境变量或默认路径
+        project_data_dir = os.environ.get('PROJECT_DATA_DIR')
+        if project_data_dir:
+            data_dir = project_data_dir
+        else:
+            # 回退到默认路径
+            data_dir = os.path.expanduser("~/Developer/Code/Data/srv/auto_match_pull")
         config_path = os.path.join(data_dir, "config.json")
     
     # 从环境变量获取搜索路径
     env_search_paths = os.environ.get('AUTO_MATCH_PULL_SEARCH_PATHS')
     env_interval = os.environ.get('AUTO_MATCH_PULL_INTERVAL')
+    
+    # 加载scan_folders.json配置
+    scan_folders_path = os.path.join(os.path.dirname(config_path), "scan_folders.json")
+    scan_folders_config = None
+    if os.path.exists(scan_folders_path):
+        try:
+            with open(scan_folders_path, 'r') as f:
+                scan_folders_config = json.load(f)
+        except Exception as e:
+            print(f"警告: 无法加载scan_folders.json: {e}")
+            scan_folders_config = None
     
     if not os.path.exists(config_path):
         # 创建默认配置
@@ -49,8 +65,11 @@ def load_config(config_path: str = None) -> Dict:
             "~/Projects"
         ]
         
+        # 优先使用scan_folders.json中的搜索路径
+        if scan_folders_config and 'search_paths' in scan_folders_config:
+            default_search_paths = scan_folders_config['search_paths']
         # 如果环境变量存在，使用环境变量的路径
-        if env_search_paths:
+        elif env_search_paths:
             default_search_paths = [path.strip() for path in env_search_paths.split(',')]
         
         default_interval = 30
@@ -69,7 +88,7 @@ def load_config(config_path: str = None) -> Dict:
                 "retry_failed_after_minutes": 120,
                 "cleanup_logs_days": 30,
                 "repo_manager_dependency": True,
-                "repo_manager_config_dir": "~/Developer/Code/Script_data/repo_management/.repo-manager"
+                "repo_manager_config_dir": "~/Developer/Code/Data/srv/repo_management/.repo-manager"
             },
             "similarity_threshold": 0.8,
             "auto_resolve_conflicts": True,
@@ -81,13 +100,15 @@ def load_config(config_path: str = None) -> Dict:
             json.dump(default_config, f, indent=2)
         
         print(f"创建默认配置文件: {config_path}")
-        return default_config
+        return default_config, scan_folders_config
     
     with open(config_path, 'r') as f:
         config = json.load(f)
     
-    # 环境变量覆盖配置文件设置
-    if env_search_paths:
+    # scan_folders.json优先，然后是环境变量覆盖配置文件设置
+    if scan_folders_config and 'search_paths' in scan_folders_config:
+        config["search_paths"] = scan_folders_config['search_paths']
+    elif env_search_paths:
         config["search_paths"] = [path.strip() for path in env_search_paths.split(',')]
     
     if env_interval:
@@ -96,12 +117,12 @@ def load_config(config_path: str = None) -> Dict:
         except (ValueError, KeyError):
             pass
     
-    return config
+    return config, scan_folders_config
 
 
 def cmd_scan(args):
     """扫描GitHub仓库并匹配本地项目"""
-    config = load_config(args.config)
+    config, scan_folders_config = load_config(args.config)
     search_paths = config.get('search_paths', [])
     
     if args.paths:
@@ -119,7 +140,7 @@ def cmd_scan(args):
     print(f"GitHub用户: {github_username}")
     
     # 创建匹配器
-    matcher = FolderMatcher(search_paths, github_token)
+    matcher = FolderMatcher(search_paths, github_token, scan_folders_config)
     
     # 新的匹配流程：先获取GitHub仓库，再匹配本地项目
     print("从GitHub获取仓库列表...")
@@ -200,7 +221,7 @@ def cmd_list(args):
 
 def cmd_pull(args):
     """执行Pull操作"""
-    config = load_config(args.config)
+    config, _ = load_config(args.config)
     db_manager = DatabaseManager()
     conflict_strategy = config.get('conflict_resolution_strategy', 'smart_merge')
     git_service = GitService(conflict_strategy=conflict_strategy)
@@ -245,7 +266,7 @@ def cmd_pull(args):
 
 def cmd_daemon(args):
     """启动守护进程"""
-    config = load_config(args.config)
+    config, _ = load_config(args.config)
     
     # 创建服务
     db_manager = DatabaseManager()
@@ -258,7 +279,7 @@ def cmd_daemon(args):
         retry_failed_after_minutes=config['scheduler']['retry_failed_after_minutes'],
         cleanup_logs_days=config['scheduler']['cleanup_logs_days'],
         repo_manager_dependency=config['scheduler'].get('repo_manager_dependency', True),
-        repo_manager_config_dir=config['scheduler'].get('repo_manager_config_dir', "~/Developer/Code/Script_data/repo_management/.repo-manager")
+        repo_manager_config_dir=config['scheduler'].get('repo_manager_config_dir', "~/Developer/Code/Data/srv/repo_management/.repo-manager")
     )
     
     scheduler = SchedulerService(db_manager, git_service, scheduler_config)
@@ -293,8 +314,13 @@ def cmd_config(args):
     if args.config:
         config_path = args.config
     else:
-        # 默认存储在用户数据目录
-        data_dir = os.path.expanduser("~/Developer/Code/Script_data/auto_match_pull")
+        # 使用PROJECT_DATA_DIR环境变量或默认路径
+        project_data_dir = os.environ.get('PROJECT_DATA_DIR')
+        if project_data_dir:
+            data_dir = project_data_dir
+        else:
+            # 回退到默认路径
+            data_dir = os.path.expanduser("~/Developer/Code/Data/srv/auto_match_pull")
         config_path = os.path.join(data_dir, "config.json")
     
     if args.show:
@@ -313,7 +339,7 @@ def cmd_config(args):
     elif args.reset:
         if os.path.exists(config_path):
             os.remove(config_path)
-        load_config(config_path)  # 重新创建默认配置
+        _, _ = load_config(config_path)  # 重新创建默认配置
         print(f"已重置配置文件: {config_path}")
 
 
@@ -383,7 +409,7 @@ def autostart():
     print("🚀 启动Auto Match Pull自动服务...")
     
     # 加载配置
-    config = load_config()
+    config, _ = load_config()
     
     # 初始化服务
     db_manager = DatabaseManager()
@@ -395,7 +421,7 @@ def autostart():
         retry_failed_after_minutes=config['scheduler']['retry_failed_after_minutes'],
         cleanup_logs_days=config['scheduler']['cleanup_logs_days'],
         repo_manager_dependency=config['scheduler'].get('repo_manager_dependency', True),
-        repo_manager_config_dir=config['scheduler'].get('repo_manager_config_dir', "~/Developer/Code/Script_data/repo_management/.repo-manager")
+        repo_manager_config_dir=config['scheduler'].get('repo_manager_config_dir', "~/Developer/Code/Data/srv/repo_management/.repo-manager")
     )
     
     scheduler = SchedulerService(db_manager, git_service, scheduler_config)

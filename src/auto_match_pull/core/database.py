@@ -29,8 +29,13 @@ class FolderRepoMapping:
 class DatabaseManager:
     def __init__(self, db_path: str = None):
         if db_path is None:
-            # 默认存储在用户数据目录
-            data_dir = os.path.expanduser("~/Developer/Code/Script_data/auto_match_pull")
+            # 使用PROJECT_DATA_DIR环境变量或默认路径
+            project_data_dir = os.environ.get('PROJECT_DATA_DIR')
+            if project_data_dir:
+                data_dir = project_data_dir
+            else:
+                # 回退到默认路径
+                data_dir = os.path.expanduser("~/Developer/Code/Data/srv/auto_match_pull")
             os.makedirs(data_dir, exist_ok=True)
             db_path = os.path.join(data_dir, "mappings.db")
         

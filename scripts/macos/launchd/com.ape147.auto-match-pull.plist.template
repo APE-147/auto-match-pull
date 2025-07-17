@@ -18,10 +18,10 @@
     <true/>
     
     <key>StandardOutPath</key>
-    <string>$HOME/Developer/Code/Script_data/auto_match_pull/logs/daemon.log</string>
+    <string>$HOME/Developer/Code/Data/srv/auto_match_pull/logs/daemon.log</string>
     
     <key>StandardErrorPath</key>
-    <string>$HOME/Developer/Code/Script_data/auto_match_pull/logs/daemon.error.log</string>
+    <string>$HOME/Developer/Code/Data/srv/auto_match_pull/logs/daemon.error.log</string>
     
     <key>WorkingDirectory</key>
     <string>$HOME</string>
@@ -34,6 +34,8 @@
         <string>$HOME/path/to/your/projects1,$HOME/path/to/your/projects2</string>
         <key>AUTO_MATCH_PULL_INTERVAL</key>
         <string>30</string>
+        <key>PROJECT_DATA_DIR</key>
+        <string>$HOME/Developer/Code/Data/srv/auto_match_pull</string>
     </dict>
     
     <key>ThrottleInterval</key>

@@ -25,12 +25,18 @@ class RepoInfo:
     github_exists: bool = False
 
 class FolderMatcher:
-    def __init__(self, search_paths: List[str], github_token: Optional[str] = None):
+    def __init__(self, search_paths: List[str], github_token: Optional[str] = None, scan_folders_config: Optional[Dict] = None):
         self.search_paths = search_paths
         self.folders: List[FolderInfo] = []
         self.repos: List[RepoInfo] = []
         self.github_token = github_token
-        self.excluded_projects = {'Crawler', 'Default', 'Script', 'Trading'}
+        
+        # 从scan_folders.json加载排除项目配置，否则使用默认值
+        if scan_folders_config and 'excluded_folders' in scan_folders_config:
+            self.excluded_projects = set(scan_folders_config['excluded_folders'])
+        else:
+            self.excluded_projects = {'Crawler', 'Default', 'Script', 'Trading'}
+        
         self.github_session = requests.Session()
         if github_token:
             self.github_session.headers.update({
